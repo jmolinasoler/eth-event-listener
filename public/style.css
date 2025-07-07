@@ -10,6 +10,7 @@ header {
     background-color: #fff;
     padding: 1rem 2rem;
     border-bottom: 1px solid #ddd;
+    flex-wrap: wrap;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -23,6 +24,40 @@ header h1 {
     margin: 0;
     font-size: 1.5rem;
     color: #1a1a1a;
+}
+
+.filter-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-grow: 1;
+    margin: 0 2rem;
+    min-width: 250px;
+}
+
+#filter-address {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#filter-address:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+#clear-filter-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #888;
+    cursor: pointer;
+    padding: 0 8px;
+    line-height: 1;
 }
 
 .status-container {
@@ -68,6 +103,10 @@ main {
     animation: fadeIn 0.5s ease-out;
     word-wrap: break-word;
     overflow-wrap: break-word;
+}
+
+.event-card.hidden {
+    display: none;
 }
 
 @keyframes fadeIn {

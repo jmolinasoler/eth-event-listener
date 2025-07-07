@@ -1,15 +1,21 @@
 // index.js (Corrected for Ethers v6 with Wildcard Filter)
 import { ethers } from 'ethers';
 import 'dotenv/config';
+import { promises as fs } from 'fs';
 import express from 'express';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// --- Web Server & WebSocket Setup (Controller) ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // --- Configuration ---
 const rpcUrl = process.env.RPC_URL;
 const PORT = process.env.PORT || 3000;
+const LOG_FILE_PATH = path.join(__dirname, 'events.log');
 
 if (!rpcUrl) {
   throw new Error("RPC_URL not found in .env file. Please add it.");
@@ -17,10 +23,6 @@ if (!rpcUrl) {
 if (!rpcUrl.startsWith('ws')) {
   console.warn("Warning: For real-time events, a WebSocket URL (wss://) is recommended.");
 }
-
-// --- Web Server & WebSocket Setup (Controller) ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from the 'public' directory
@@ -58,7 +60,7 @@ function broadcast(data) {
 // --- Ethereum Event Listener (Model) ---
 
 // This function handles logging and broadcasting events
-const logHandler = (log) => {
+const logHandler = async (log) => {
   // Format a clean log object for broadcasting to avoid circular references
   const formattedLog = {
     blockNumber: log.blockNumber,
@@ -68,10 +70,20 @@ const logHandler = (log) => {
     logIndex: log.logIndex,
     topics: log.topics,
     data: log.data,
+    timestamp: new Date().toISOString(),
   };
 
+  // Broadcast to connected WebSocket clients
   console.log(`Broadcasting event from block ${log.blockNumber} for contract ${log.address}`);
   broadcast(formattedLog);
+
+  // Append the event to the log file
+  const logEntry = JSON.stringify(formattedLog) + '\n';
+  try {
+    await fs.appendFile(LOG_FILE_PATH, logEntry);
+  } catch (err) {
+    console.error(`Failed to write event to log file: ${err.message}`);
+  }
 };
 
 // --- Main Application Logic ---
@@ -97,7 +109,10 @@ function connect() {
     provider.on("block", async (blockNumber) => {
       try {
         const logs = await provider.getLogs({ fromBlock: blockNumber, toBlock: blockNumber });
-        logs.forEach(logHandler);
+        // Process each log sequentially to ensure order in the log file
+        for (const log of logs) {
+          await logHandler(log);
+        }
       } catch (e) {
         console.error(`Error fetching logs for block ${blockNumber}:`, e);
       }

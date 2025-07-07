@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('events-container');
     const statusLight = document.getElementById('status-light');
     const statusText = document.getElementById('status-text');
+    const filterInput = document.getElementById('filter-address');
+    const clearButton = document.getElementById('clear-filter-btn');
     let placeholder = document.querySelector('.placeholder');
 
     function connect() {
@@ -21,7 +23,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 placeholder = null; // Ensure it's only removed once
             }
             const log = JSON.parse(event.data);
-            createEventCard(log);
+            const card = createEventCard(log);
+
+            // Hide card immediately if it doesn't match the current filter
+            const filterValue = filterInput.value.trim().toLowerCase();
+            if (filterValue && !log.address.toLowerCase().includes(filterValue)) {
+                card.classList.add('hidden');
+            }
         };
 
         ws.onclose = () => {
@@ -41,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function createEventCard(log) {
         const card = document.createElement('div');
         card.className = 'event-card';
+        card.dataset.address = log.address.toLowerCase();
 
         const topicsHtml = log.topics.map((topic, i) => `
             <div class="detail">
@@ -67,7 +76,28 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         container.prepend(card);
+        return card;
     }
+
+    function applyFilter() {
+        const filterValue = filterInput.value.trim().toLowerCase();
+        const cards = document.querySelectorAll('.event-card');
+
+        cards.forEach(card => {
+            const cardAddress = card.dataset.address;
+            if (!filterValue || cardAddress.includes(filterValue)) {
+                card.classList.remove('hidden');
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+    }
+
+    filterInput.addEventListener('input', applyFilter);
+    clearButton.addEventListener('click', () => {
+        filterInput.value = '';
+        applyFilter();
+    });
 
     connect();
 });

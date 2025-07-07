@@ -11,6 +11,7 @@ This project uses `ethers.js` v6 and demonstrates the modern, recommended patter
 -   **Ethers v6 Pattern**: Implements the `provider.on('block', ...)` and `provider.getLogs(...)` pattern, which is compatible with major RPC providers like Infura and Alchemy.
 -   **Detailed Log Output**: Prints comprehensive details for each event, including block number, transaction hash, contract address, topics, and data.
 -   **Robust Connection Handling**: Automatically attempts to reconnect if the WebSocket connection is dropped.
+-   **File Logging**: Persists all received events to a local `events.log` file in JSONL format.
 -   **Easy Configuration**: Uses a `.env` file to manage the RPC URL.
 
 ## Prerequisites
