@@ -7,6 +7,7 @@ This project uses `ethers.js` v6 and demonstrates the modern, recommended patter
 ## Features
 
 -   **Real-time Event Listening**: Captures every event emitted on the network as new blocks are mined.
+-   **Web UI**: A clean, modern web interface to visualize events as they happen in real-time.
 -   **Ethers v6 Pattern**: Implements the `provider.on('block', ...)` and `provider.getLogs(...)` pattern, which is compatible with major RPC providers like Infura and Alchemy.
 -   **Detailed Log Output**: Prints comprehensive details for each event, including block number, transaction hash, contract address, topics, and data.
 -   **Robust Connection Handling**: Automatically attempts to reconnect if the WebSocket connection is dropped.

@@ -1,9 +1,15 @@
 // index.js (Corrected for Ethers v6 with Wildcard Filter)
 import { ethers } from 'ethers';
 import 'dotenv/config';
+import express from 'express';
+import http from 'http';
+import { WebSocketServer } from 'ws';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // --- Configuration ---
 const rpcUrl = process.env.RPC_URL;
+const PORT = process.env.PORT || 3000;
 
 if (!rpcUrl) {
   throw new Error("RPC_URL not found in .env file. Please add it.");
@@ -12,30 +18,65 @@ if (!rpcUrl.startsWith('ws')) {
   console.warn("Warning: For real-time events, a WebSocket URL (wss://) is recommended.");
 }
 
-// This function will handle the event logging
+// --- Web Server & WebSocket Setup (Controller) ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from the 'public' directory
+
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+
+// Keep track of all connected clients
+const clients = new Set();
+
+wss.on('connection', (ws) => {
+  console.log('Client connected to WebSocket');
+  clients.add(ws);
+
+  ws.on('close', () => {
+    console.log('Client disconnected from WebSocket');
+    clients.delete(ws);
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
+});
+
+function broadcast(data) {
+  const message = JSON.stringify(data);
+  for (const client of clients) {
+    // Check if the client's connection is open before sending
+    if (client.readyState === client.OPEN) {
+      client.send(message);
+    }
+  }
+}
+
+// --- Ethereum Event Listener (Model) ---
+
+// This function handles logging and broadcasting events
 const logHandler = (log) => {
-  // The log object contains a wealth of information.
-  // Let's log more details to make it more useful for debugging and analysis.
-  console.log(`
-    ==================== New Event Received ====================
-    Block Number:         ${log.blockNumber}
-    Transaction Hash:     ${log.transactionHash}
-    Contract Address:     ${log.address}
-    Transaction Index:    ${log.transactionIndex}
-    Log Index in Block:   ${log.logIndex}
-    Topics (indexed data):
-      - Signature Hash:   ${log.topics[0] || 'N/A'}
-      - Topic 1:          ${log.topics[1] || 'N/A'}
-      - Topic 2:          ${log.topics[2] || 'N/A'}
-      - Topic 3:          ${log.topics[3] || 'N/A'}
-    Data (non-indexed):   ${log.data.length > 130 ? log.data.slice(0, 130) + '...' : log.data}
-    ------------------------------------------------------------
-  `);
+  // Format a clean log object for broadcasting to avoid circular references
+  const formattedLog = {
+    blockNumber: log.blockNumber,
+    transactionHash: log.transactionHash,
+    address: log.address,
+    transactionIndex: log.transactionIndex,
+    logIndex: log.logIndex,
+    topics: log.topics,
+    data: log.data,
+  };
+
+  console.log(`Broadcasting event from block ${log.blockNumber} for contract ${log.address}`);
+  broadcast(formattedLog);
 };
 
 // --- Main Application Logic ---
 function connect() {
-  console.log(`Connecting to Ethereum via: ${rpcUrl.split('/v3/')[0]}...`);
+  console.log(`Connecting to Ethereum provider: ${rpcUrl.split('/v3/')[0]}...`);
 
   // WebSocketProvider is still the correct choice for real-time events.
   const provider = new ethers.WebSocketProvider(rpcUrl);
@@ -83,8 +124,13 @@ function connect() {
 // --- Start the application ---
 // Wrap the initial connect in a try/catch for immediate setup errors.
 try {
-  connect();
+  // Start the Ethereum listener
+  connect(); 
 } catch (error) {
-  console.error("Failed to start the application:", error);
-  process.exit(1);
+  console.error("Failed to start the Ethereum listener:", error);
 }
+
+// Start the web server
+server.listen(PORT, () => {
+  console.log(`Web UI available at http://localhost:${PORT}`);
+});
