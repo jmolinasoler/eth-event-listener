@@ -51,29 +51,55 @@ document.addEventListener('DOMContentLoaded', () => {
         card.className = 'event-card';
         card.dataset.address = log.address.toLowerCase();
 
-        const topicsHtml = log.topics.map((topic, i) => `
-            <div class="detail">
-                <div class="detail-label">Topic ${i}:</div>
-                <div class="detail-value">${topic || 'N/A'}</div>
-            </div>
-        `).join('');
+        let contentHtml = '';
 
-        card.innerHTML = `
-            <h2>Block: <span class="label">${log.blockNumber}</span></h2>
-            <div class="detail">
-                <div class="detail-label">Contract Address:</div>
-                <div class="detail-value">${log.address}</div>
-            </div>
-            <div class="detail">
-                <div class="detail-label">Transaction Hash:</div>
-                <div class="detail-value">${log.transactionHash}</div>
-            </div>
-            ${topicsHtml}
-            <div class="detail">
-                <div class="detail-label">Data:</div>
-                <div class="detail-value">${log.data.length > 258 ? log.data.slice(0, 258) + '...' : log.data}</div>
-            </div>
-        `;
+        if (log.decoded) {
+            // Render decoded event
+            const argsHtml = Object.entries(log.decoded.args).map(([key, value]) => `
+                <div class="detail">
+                    <div class="detail-label">${key}:</div>
+                    <div class="detail-value">${value}</div>
+                </div>
+            `).join('');
+
+            contentHtml = `
+                <h2>Event: <span class="label">${log.decoded.name}</span></h2>
+                <div class="detail">
+                    <div class="detail-label">Contract:</div>
+                    <div class="detail-value">${log.address}</div>
+                </div>
+                <div class="detail">
+                    <div class="detail-label">Signature:</div>
+                    <div class="detail-value">${log.decoded.signature}</div>
+                </div>
+                <hr class="divider">
+                <h3>Arguments</h3>
+                ${argsHtml}
+                <hr class="divider">
+                 <div class="detail">
+                    <div class="detail-label">Tx Hash:</div>
+                    <div class="detail-value">${log.transactionHash}</div>
+                </div>
+            `;
+        } else {
+            // Render raw event (existing logic)
+            const topicsHtml = log.topics.map((topic, i) => `
+                <div class="detail">
+                    <div class="detail-label">Topic ${i}:</div>
+                    <div class="detail-value">${topic || 'N/A'}</div>
+                </div>
+            `).join('');
+
+            contentHtml = `
+                <h2>Block: <span class="label">${log.blockNumber}</span></h2>
+                <div class="detail"><div class="detail-label">Contract:</div><div class="detail-value">${log.address}</div></div>
+                <div class="detail"><div class="detail-label">Tx Hash:</div><div class="detail-value">${log.transactionHash}</div></div>
+                ${topicsHtml}
+                <div class="detail"><div class="detail-label">Data:</div><div class="detail-value">${log.data.length > 258 ? log.data.slice(0, 258) + '...' : log.data}</div></div>
+            `;
+        }
+
+        card.innerHTML = contentHtml;
 
         container.prepend(card);
         return card;

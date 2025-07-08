@@ -114,6 +114,20 @@ main {
     to { opacity: 1; transform: translateY(0); }
 }
 
+.event-card h3 {
+    font-size: 0.9rem;
+    color: #333;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.divider {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 1rem 0;
+}
+
 .event-card h2 {
     font-size: 1rem;
     margin-top: 0;

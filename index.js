@@ -8,9 +8,36 @@ import { WebSocketServer } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// --- Web Server & WebSocket Setup (Controller) ---
+// --- ES Module Workarounds ---
+// In ES modules, __dirname is not available by default. This is the standard workaround.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// --- ABI Registry ---
+const abiRegistry = new Map();
+
+async function loadAbis() {
+  const abiDir = path.join(__dirname, 'abis');
+  try {
+    const files = await fs.readdir(abiDir);
+    console.log('Loading ABIs...');
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        const address = file.slice(0, -5).toLowerCase(); // remove .json
+        const abiPath = path.join(abiDir, file);
+        const abiContent = await fs.readFile(abiPath, 'utf8');
+        abiRegistry.set(address, new ethers.Interface(JSON.parse(abiContent)));
+        console.log(`- Loaded ABI for 0x${address}`);
+      }
+    }
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      console.log("'abis' directory not found, skipping ABI loading. Create an 'abis' directory with contract_address.json files to enable event decoding.");
+    } else {
+      console.error('Error loading ABIs:', e);
+    }
+  }
+}
 
 // --- Configuration ---
 const rpcUrl = process.env.RPC_URL;
@@ -24,6 +51,7 @@ if (!rpcUrl.startsWith('ws')) {
   console.warn("Warning: For real-time events, a WebSocket URL (wss://) is recommended.");
 }
 
+// --- Web Server & WebSocket Setup (Controller) ---
 const app = express();
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from the 'public' directory
 
@@ -71,7 +99,33 @@ const logHandler = async (log) => {
     topics: log.topics,
     data: log.data,
     timestamp: new Date().toISOString(),
+    decoded: null,
   };
+
+  // --- Event Decoding Logic ---
+  const contractAddress = log.address.toLowerCase();
+  if (abiRegistry.has(contractAddress)) {
+    const iface = abiRegistry.get(contractAddress);
+    try {
+      const parsedLog = iface.parseLog({ topics: [...log.topics], data: log.data });
+      if (parsedLog) {
+        const args = {};
+        // The Result object is array-like and has named properties
+        parsedLog.fragment.inputs.forEach((input, index) => {
+          let value = parsedLog.args[index];
+          // Convert BigInt to string for JSON serialization
+          if (typeof value === 'bigint') {
+            value = value.toString();
+          }
+          args[input.name] = value;
+        });
+
+        formattedLog.decoded = { name: parsedLog.name, signature: parsedLog.signature, args: args };
+      }
+    } catch (e) {
+      // This is expected if the log topic doesn't match any event in the ABI
+    }
+  }
 
   // Broadcast to connected WebSocket clients
   console.log(`Broadcasting event from block ${log.blockNumber} for contract ${log.address}`);
@@ -137,15 +191,21 @@ function connect() {
 }
 
 // --- Start the application ---
-// Wrap the initial connect in a try/catch for immediate setup errors.
-try {
-  // Start the Ethereum listener
-  connect(); 
-} catch (error) {
-  console.error("Failed to start the Ethereum listener:", error);
+async function startApp() {
+  await loadAbis();
+
+  // Wrap the initial connect in a try/catch for immediate setup errors.
+  try {
+    // Start the Ethereum listener
+    connect();
+  } catch (error) {
+    console.error("Failed to start the Ethereum listener:", error);
+  }
+
+  // Start the web server
+  server.listen(PORT, () => {
+    console.log(`Web UI available at http://localhost:${PORT}`);
+  });
 }
 
-// Start the web server
-server.listen(PORT, () => {
-  console.log(`Web UI available at http://localhost:${PORT}`);
-});
+startApp();
