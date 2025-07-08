@@ -114,6 +114,30 @@ main {
     to { opacity: 1; transform: translateY(0); }
 }
 
+.etherscan-link {
+    color: #007bff;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.etherscan-link:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+.json-value {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 0.8em;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
 .event-card h3 {
     font-size: 0.9rem;
     color: #333;
@@ -149,6 +173,7 @@ main {
     gap: 5px 15px;
     margin-bottom: 8px;
     font-size: 0.875rem;
+    align-items: start;
 }
 
 .detail-label {

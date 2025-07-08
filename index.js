@@ -117,7 +117,10 @@ const logHandler = async (log) => {
           if (typeof value === 'bigint') {
             value = value.toString();
           }
-          args[input.name] = value;
+            args[input.name] = {
+              value: value,
+              type: input.type
+            };
         });
 
         formattedLog.decoded = { name: parsedLog.name, signature: parsedLog.signature, args: args };

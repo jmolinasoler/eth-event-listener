@@ -6,6 +6,56 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearButton = document.getElementById('clear-filter-btn');
     let placeholder = document.querySelector('.placeholder');
 
+    function createEtherscanLink(type, value) {
+        const shortValue = `${value.slice(0, 6)}...${value.slice(-4)}`;
+        return `<a href="https://etherscan.io/${type}/${value}" target="_blank" rel="noopener noreferrer" class="etherscan-link" title="${value}">${shortValue}</a>`;
+    }
+
+    /**
+     * Formats a raw uint256 string as a decimal string, assuming 18 decimals.
+     * This is a heuristic for making token amounts human-readable.
+     */
+    function formatTokenAmount(value, decimals = 18) {
+        if (!/^\d+$/.test(value)) return value; // Not a valid integer string
+
+        let s = value.toString();
+
+        // Pad with leading zeros if necessary
+        if (s.length <= decimals) {
+            s = '0'.repeat(decimals - s.length + 1) + s;
+        }
+
+        const wholePart = s.slice(0, -decimals);
+        let fractionalPart = s.slice(-decimals).replace(/0+$/, ''); // Remove trailing zeros
+
+        const formattedWhole = BigInt(wholePart).toLocaleString('en-US');
+
+        if (fractionalPart === '') {
+            return formattedWhole;
+        }
+
+        return `${formattedWhole}.${fractionalPart.slice(0, 6)}`; // Show up to 6 decimal places for readability
+    }
+
+    function formatValue(value) {
+        if (typeof value === 'string') {
+            // Check if it's an address
+            if (/^0x[a-fA-F0-9]{40}$/.test(value)) {
+                return createEtherscanLink('address', value);
+            }
+            // Check if it's a long number string (likely a token amount)
+            if (/^\d{10,}$/.test(value)) {
+                try {
+                    return BigInt(value).toLocaleString('en-US');
+                } catch (e) { /* fall-through */ }
+            }
+        }
+        if (typeof value === 'object' && value !== null) {
+            return `<pre class="json-value">${JSON.stringify(value, null, 2)}</pre>`;
+        }
+        return value;
+    }
+
     function connect() {
         // Use wss:// if the page is served over https, otherwise ws://
         const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -50,35 +100,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = document.createElement('div');
         card.className = 'event-card';
         card.dataset.address = log.address.toLowerCase();
-
+        
         let contentHtml = '';
+        const contractLink = createEtherscanLink('address', log.address);
+        const txLink = createEtherscanLink('tx', log.transactionHash);
 
         if (log.decoded) {
             // Render decoded event
-            const argsHtml = Object.entries(log.decoded.args).map(([key, value]) => `
+            const argsHtml = Object.entries(log.decoded.args).map(([key, arg]) => {
+                // For tuple-like results that are array-like, ethers gives both indexed and named keys.
+                // We only want to show the named keys to avoid duplication.
+                if (String(parseInt(key, 10)) === key) return '';
+
+                let displayValue;
+                // Heuristic for formatting token amounts based on type and name
+                if (arg.type === 'uint256' && ['wad', 'amount', 'value'].includes(key.toLowerCase())) {
+                    displayValue = formatTokenAmount(arg.value, 18);
+                } else {
+                    displayValue = formatValue(arg.value);
+                }
+
+                return `
                 <div class="detail">
                     <div class="detail-label">${key}:</div>
-                    <div class="detail-value">${value}</div>
+                    <div class="detail-value">${displayValue}</div>
                 </div>
-            `).join('');
+            `}).join('');
 
             contentHtml = `
                 <h2>Event: <span class="label">${log.decoded.name}</span></h2>
                 <div class="detail">
                     <div class="detail-label">Contract:</div>
-                    <div class="detail-value">${log.address}</div>
+                    <div class="detail-value">${contractLink}</div>
                 </div>
                 <div class="detail">
                     <div class="detail-label">Signature:</div>
                     <div class="detail-value">${log.decoded.signature}</div>
                 </div>
                 <hr class="divider">
-                <h3>Arguments</h3>
+                <h3>Arguments:</h3>
                 ${argsHtml}
                 <hr class="divider">
                  <div class="detail">
                     <div class="detail-label">Tx Hash:</div>
-                    <div class="detail-value">${log.transactionHash}</div>
+                    <div class="detail-value">${txLink}</div>
                 </div>
             `;
         } else {
@@ -91,9 +156,9 @@ document.addEventListener('DOMContentLoaded', () => {
             `).join('');
 
             contentHtml = `
-                <h2>Block: <span class="label">${log.blockNumber}</span></h2>
-                <div class="detail"><div class="detail-label">Contract:</div><div class="detail-value">${log.address}</div></div>
-                <div class="detail"><div class="detail-label">Tx Hash:</div><div class="detail-value">${log.transactionHash}</div></div>
+                <h2>Block: <span class="label">${log.blockNumber.toLocaleString('en-US')}</span></h2>
+                <div class="detail"><div class="detail-label">Contract:</div><div class="detail-value">${contractLink}</div></div>
+                <div class="detail"><div class="detail-label">Tx Hash:</div><div class="detail-value">${txLink}</div></div>
                 ${topicsHtml}
                 <div class="detail"><div class="detail-label">Data:</div><div class="detail-value">${log.data.length > 258 ? log.data.slice(0, 258) + '...' : log.data}</div></div>
             `;

@@ -7,13 +7,23 @@ This project uses `ethers.js` v6 and demonstrates the modern, recommended patter
 ## Features
 
 -   **Real-time Event Listening**: Captures every event emitted on the network as new blocks are mined.
--   **Web UI**: A clean, modern web interface to visualize events as they happen in real-time.
+-   **Web UI**: A clean, modern web interface to visualize events as they happen in real-time, with human-readable decoded logs and links to Etherscan.
 -   **Ethers v6 Pattern**: Implements the `provider.on('block', ...)` and `provider.getLogs(...)` pattern, which is compatible with major RPC providers like Infura and Alchemy.
 -   **Event Decoding**: Automatically decodes event data for contracts with a known ABI.
 -   **Detailed Log Output**: Prints comprehensive details for each event, including block number, transaction hash, contract address, topics, and data.
 -   **Robust Connection Handling**: Automatically attempts to reconnect if the WebSocket connection is dropped.
 -   **File Logging**: Persists all received events to a local `events.log` file in JSONL format.
 -   **Easy Configuration**: Uses a `.env` file to manage the RPC URL.
+
+### Web UI Features
+
+The web interface provides a real-time feed of all events occurring on the network.
+
+-   **Live Feed**: New events appear at the top of the page automatically.
+-   **Event Decoding**: If an ABI is provided for a contract, its events are fully decoded, showing the event name and arguments in a human-readable format.
+-   **Etherscan Links**: Contract addresses, transaction hashes, and addresses within event arguments are automatically linked to Etherscan for easy exploration.
+-   **Client-Side Filtering**: A filter bar allows you to instantly show only events from a specific contract address.
+
 
 ## Prerequisites
 
