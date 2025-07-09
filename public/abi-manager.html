@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABI Manager</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .upload-section, .abis-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        .abi-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+        .delete-btn { background-color: #dc3545; color: white; border: none; }
+        .upload-btn { background-color: #007bff; color: white; border: none; }
+        #status { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ABI Manager</h1>
+        
+        <div class="upload-section">
+            <h2>Upload ABI</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="file" id="abiFile" accept=".json" required>
+                <input type="text" id="contractAddress" placeholder="Contract Address (optional)" style="margin: 10px 0; padding: 8px; width: 300px;">
+                <br>
+                <button type="submit" class="upload-btn">Upload ABI</button>
+            </form>
+            <div id="status"></div>
+        </div>
+
+        <div class="abis-section">
+            <h2>Loaded ABIs</h2>
+            <div id="abisList"></div>
+        </div>
+    </div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const abisListDiv = document.getElementById('abisList');
+
+        function showStatus(message, isError = false) {
+            statusDiv.textContent = message;
+            statusDiv.className = isError ? 'error' : 'success';
+            setTimeout(() => {
+                statusDiv.textContent = '';
+                statusDiv.className = '';
+            }, 5000);
+        }
+
+        async function loadAbis() {
+            try {
+                const response = await fetch('/api/abis');
+                const data = await response.json();
+                
+                if (data.success) {
+                    abisListDiv.innerHTML = '';
+                    data.abis.forEach(abi => {
+                        const abiItem = document.createElement('div');
+                        abiItem.className = 'abi-item';
+                        abiItem.innerHTML = `
+                            <span>${abi.address}</span>
+                            <button class="delete-btn" onclick="deleteAbi('${abi.address}')">Delete</button>
+                        `;
+                        abisListDiv.appendChild(abiItem);
+                    });
+                } else {
+                    showStatus('Error loading ABIs: ' + data.error, true);
+                }
+            } catch (error) {
+                showStatus('Error loading ABIs: ' + error.message, true);
+            }
+        }
+
+        async function deleteAbi(address) {
+            if (!confirm(`Are you sure you want to delete ABI for ${address}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/abis/${address}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus(data.message);
+                    loadAbis();
+                } else {
+                    showStatus('Error deleting ABI: ' + data.error, true);
+                }
+            } catch (error) {
+                showStatus('Error deleting ABI: ' + error.message, true);
+            }
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('abiFile');
+            const addressInput = document.getElementById('contractAddress');
+            
+            if (!fileInput.files[0]) {
+                showStatus('Please select a file', true);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('abi', fileInput.files[0]);
+            if (addressInput.value.trim()) {
+                formData.append('address', addressInput.value.trim());
+            }
+
+            try {
+                const response = await fetch('/api/abis/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus(data.message);
+                    fileInput.value = '';
+                    addressInput.value = '';
+                    loadAbis();
+                } else {
+                    showStatus('Upload failed: ' + data.error, true);
+                }
+            } catch (error) {
+                showStatus('Upload error: ' + error.message, true);
+            }
+        });
+
+        // Load ABIs on page load
+        loadAbis();
+    </script>
+</body>
+</html>

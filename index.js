@@ -7,36 +7,80 @@ import http from 'http';
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import multer from 'multer';
 
 // --- ES Module Workarounds ---
 // In ES modules, __dirname is not available by default. This is the standard workaround.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- ABI Registry ---
+// --- ABI Registry (Model) ---
 const abiRegistry = new Map();
+
+// Configure multer for ABI file uploads
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const abiDir = path.join(__dirname, 'abis');
+      cb(null, abiDir);
+    },
+    filename: (req, file, cb) => {
+      // Extract address from form data or use original filename
+      const address = req.body.address || file.originalname.replace('.json', '');
+      cb(null, `${address.toLowerCase()}.json`);
+    }
+  }),
+  fileFilter: (req, file, cb) => {
+    // Only accept JSON files
+    if (file.mimetype === 'application/json' || file.originalname.endsWith('.json')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JSON files are allowed'));
+    }
+  },
+  limits: {
+    fileSize: 1024 * 1024 // 1MB limit
+  }
+});
 
 async function loadAbis() {
   const abiDir = path.join(__dirname, 'abis');
   try {
+    // Ensure abis directory exists
+    await fs.mkdir(abiDir, { recursive: true });
+    
     const files = await fs.readdir(abiDir);
     console.log('Loading ABIs...');
     for (const file of files) {
       if (file.endsWith('.json')) {
-        const address = file.slice(0, -5).toLowerCase(); // remove .json
-        const abiPath = path.join(abiDir, file);
-        const abiContent = await fs.readFile(abiPath, 'utf8');
-        abiRegistry.set(address, new ethers.Interface(JSON.parse(abiContent)));
-        console.log(`- Loaded ABI for 0x${address}`);
+        await loadSingleAbi(file);
       }
     }
   } catch (e) {
-    if (e.code === 'ENOENT') {
-      console.log("'abis' directory not found, skipping ABI loading. Create an 'abis' directory with contract_address.json files to enable event decoding.");
-    } else {
-      console.error('Error loading ABIs:', e);
-    }
+    console.error('Error loading ABIs:', e);
   }
+}
+
+async function loadSingleAbi(filename) {
+  try {
+    const address = filename.slice(0, -5).toLowerCase(); // remove .json
+    const abiPath = path.join(__dirname, 'abis', filename);
+    const abiContent = await fs.readFile(abiPath, 'utf8');
+    const parsedAbi = JSON.parse(abiContent);
+    abiRegistry.set(address, new ethers.Interface(parsedAbi));
+    console.log(`- Loaded ABI for 0x${address}`);
+    return { success: true, address };
+  } catch (error) {
+    console.error(`Error loading ABI ${filename}:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+function getLoadedAbis() {
+  return Array.from(abiRegistry.keys()).map(address => ({
+    address: `0x${address}`,
+    hasInterface: true
+  }));
 }
 
 // --- Configuration ---
@@ -53,10 +97,94 @@ if (!rpcUrl.startsWith('ws')) {
 
 // --- Web Server & WebSocket Setup (Controller) ---
 const app = express();
-app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from the 'public' directory
-
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
+
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json()); // Add JSON parsing middleware
+
+// ABI Management Routes (Controller)
+app.get('/api/abis', (req, res) => {
+  try {
+    const abis = getLoadedAbis();
+    res.json({ success: true, abis });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/abis/upload', upload.single('abi'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+
+    const result = await loadSingleAbi(req.file.filename);
+    
+    if (result.success) {
+      // Broadcast ABI update to connected WebSocket clients
+      broadcast({
+        type: 'abi_updated',
+        address: `0x${result.address}`,
+        timestamp: new Date().toISOString()
+      });
+      
+      res.json({ 
+        success: true, 
+        message: `ABI loaded successfully for address 0x${result.address}`,
+        address: `0x${result.address}`
+      });
+    } else {
+      // Clean up the uploaded file if it failed to load
+      try {
+        await fs.unlink(req.file.path);
+      } catch (unlinkError) {
+        console.error('Error cleaning up failed upload:', unlinkError);
+      }
+      res.status(400).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/abis/:address', async (req, res) => {
+  try {
+    const address = req.params.address.toLowerCase().replace('0x', '');
+    const filename = `${address}.json`;
+    const abiPath = path.join(__dirname, 'abis', filename);
+    
+    // Remove from registry
+    abiRegistry.delete(address);
+    
+    // Delete file
+    try {
+      await fs.unlink(abiPath);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+    }
+    
+    // Broadcast ABI removal to connected WebSocket clients
+    broadcast({
+      type: 'abi_removed',
+      address: `0x${address}`,
+      timestamp: new Date().toISOString()
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `ABI removed for address 0x${address}` 
+    });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- WebSocket Setup (Controller) ---
 
 // Keep track of all connected clients
 const clients = new Set();

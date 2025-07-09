@@ -3,25 +3,259 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-time Ethereum Events</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💎</text></svg>">
+    <title>Ethereum Event Listener</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <header>
-        <h1>💎 Real-time Ethereum Event Feed</h1>
-        <div class="filter-container">
-            <input type="text" id="filter-address" placeholder="Filter by Contract Address (e.g., 0x...)">
-            <button id="clear-filter-btn" title="Clear Filter">×</button>
+    <div class="container">
+        <div class="header">
+            <h1>Ethereum Event Listener</h1>
+            <div class="nav-links">
+                <a href="/abi-manager.html">🔧 Manage ABIs</a>
+                <a href="#" onclick="clearEvents()">🗑️ Clear Events</a>
+            </div>
         </div>
-        <div class="status-container">
-            <div id="status-light" class="disconnected"></div>
-            <div id="status-text">Connecting...</div>
+        
+        <div id="status" class="status disconnected">
+            Connecting to WebSocket...
         </div>
-    </header>
-    <main id="events-container">
-        <div class="placeholder">Waiting for new events...</div>
-    </main>
-    <script src="client.js"></script>
+        
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <h3>🔍 Filter Events</h3>
+            <div class="filter-controls">
+                <div class="filter-group">
+                    <label for="contractFilter">Contract Address:</label>
+                    <input type="text" id="contractFilter" placeholder="0x1234...abcd or leave empty for all" />
+                </div>
+                <div class="filter-buttons">
+                    <button id="applyFilter" class="filter-btn">Apply Filter</button>
+                    <button id="clearFilter" class="clear-filter-btn">Clear Filter</button>
+                </div>
+            </div>
+            <div id="filterStatus" class="filter-status"></div>
+        </div>
+        
+        <div>
+            <h2>Live Events</h2>
+            <p>Real-time Ethereum events will appear below. Events with loaded ABIs will be automatically decoded.</p>
+            <div id="events"></div>
+        </div>
+    </div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const eventsDiv = document.getElementById('events');
+        const contractFilterInput = document.getElementById('contractFilter');
+        const filterStatusDiv = document.getElementById('filterStatus');
+        const applyFilterBtn = document.getElementById('applyFilter');
+        const clearFilterBtn = document.getElementById('clearFilter');
+        
+        let eventCount = 0;
+        const maxEvents = 100;
+        let activeContractFilter = null;
+
+        // WebSocket connection
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}`;
+        let ws;
+
+        function connectWebSocket() {
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function() {
+                statusDiv.textContent = 'Connected - Listening for events...';
+                statusDiv.className = 'status connected';
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+
+            ws.onclose = function() {
+                statusDiv.textContent = 'Disconnected - Attempting to reconnect...';
+                statusDiv.className = 'status disconnected';
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                statusDiv.textContent = 'Connection error - Attempting to reconnect...';
+                statusDiv.className = 'status disconnected';
+            };
+        }
+
+        function handleMessage(data) {
+            if (data.type === 'abi_updated') {
+                showNotification(`ABI updated for ${data.address}`, 'success');
+            } else if (data.type === 'abi_removed') {
+                showNotification(`ABI removed for ${data.address}`, 'info');
+            } else {
+                // Regular event - apply filter if active
+                if (shouldDisplayEvent(data)) {
+                    displayEvent(data);
+                }
+            }
+        }
+
+        function shouldDisplayEvent(event) {
+            if (!activeContractFilter) {
+                return true; // No filter active, show all events
+            }
+            
+            // Normalize addresses for comparison (remove 0x prefix and convert to lowercase)
+            const eventAddress = event.address.toLowerCase().replace('0x', '');
+            const filterAddress = activeContractFilter.toLowerCase().replace('0x', '');
+            
+            return eventAddress === filterAddress;
+        }
+
+        function displayEvent(event) {
+            const eventDiv = document.createElement('div');
+            eventDiv.className = event.decoded ? 'event decoded-event' : 'event';
+
+            let content = `
+                <div class="event-header">
+                    ${event.decoded ? `📋 ${event.decoded.name}` : '📄 Raw Event'} - Block ${event.blockNumber}
+                </div>
+                <div class="event-details">
+                    <strong>Contract:</strong> ${event.address}<br>
+                    <strong>Transaction:</strong> ${event.transactionHash}<br>
+                    <strong>Time:</strong> ${new Date(event.timestamp).toLocaleString()}
+                </div>
+            `;
+
+            if (event.decoded) {
+                content += `
+                    <div class="decoded-args">
+                        <strong>Event Signature:</strong> ${event.decoded.signature}<br>
+                        <strong>Arguments:</strong>
+                `;
+                
+                for (const [name, arg] of Object.entries(event.decoded.args)) {
+                    content += `
+                        <div class="arg-item">
+                            <strong>${name}</strong> (${arg.type}): ${arg.value}
+                        </div>
+                    `;
+                }
+                content += '</div>';
+            } else {
+                content += `
+                    <div class="event-details" style="margin-top: 10px;">
+                        <strong>Topics:</strong> ${event.topics.join(', ')}<br>
+                        <strong>Data:</strong> ${event.data}
+                    </div>
+                `;
+            }
+
+            eventDiv.innerHTML = content;
+            
+            // Insert the new event at the BEGINNING (as first child)
+            eventsDiv.insertBefore(eventDiv, eventsDiv.firstChild);
+
+            // Limit the number of displayed events
+            eventCount++;
+            if (eventCount > maxEvents) {
+                // Remove the last event (the oldest one)
+                const lastEvent = eventsDiv.lastElementChild;
+                if (lastEvent) {
+                    eventsDiv.removeChild(lastEvent);
+                    eventCount--;
+                }
+            }
+        }
+
+        function applyContractFilter() {
+            const filterValue = contractFilterInput.value.trim();
+            
+            if (filterValue === '') {
+                // Clear filter
+                activeContractFilter = null;
+                filterStatusDiv.textContent = '';
+                filterStatusDiv.className = 'filter-status';
+                showNotification('Filter cleared - showing all events', 'info');
+            } else {
+                // Validate address format (basic validation)
+                const addressRegex = /^(0x)?[a-fA-F0-9]{40}$/;
+                if (!addressRegex.test(filterValue)) {
+                    showNotification('Invalid address format', 'error');
+                    return;
+                }
+                
+                activeContractFilter = filterValue;
+                filterStatusDiv.textContent = `Filtering events for: ${filterValue}`;
+                filterStatusDiv.className = 'filter-status active';
+                showNotification(`Filter applied for ${filterValue}`, 'success');
+            }
+            
+            // Clear current events to avoid confusion
+            clearEvents();
+        }
+
+        function clearContractFilter() {
+            contractFilterInput.value = '';
+            activeContractFilter = null;
+            filterStatusDiv.textContent = '';
+            filterStatusDiv.className = 'filter-status';
+            showNotification('Filter cleared - showing all events', 'info');
+            clearEvents();
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px;
+                border-radius: 4px;
+                color: white;
+                font-weight: bold;
+                z-index: 1000;
+                max-width: 300px;
+                word-wrap: break-word;
+            `;
+            
+            if (type === 'success') {
+                notification.style.backgroundColor = '#28a745';
+            } else if (type === 'info') {
+                notification.style.backgroundColor = '#17a2b8';
+            } else if (type === 'error') {
+                notification.style.backgroundColor = '#dc3545';
+            }
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 4000);
+        }
+
+        function clearEvents() {
+            eventsDiv.innerHTML = '';
+            eventCount = 0;
+        }
+
+        // Event listeners for filter controls
+        applyFilterBtn.addEventListener('click', applyContractFilter);
+        clearFilterBtn.addEventListener('click', clearContractFilter);
+        
+        // Allow Enter key to apply filter
+        contractFilterInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                applyContractFilter();
+            }
+        });
+
+        // Start WebSocket connection
+        connectWebSocket();
+    </script>
 </body>
 </html>
