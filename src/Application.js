@@ -54,7 +54,53 @@ export class Application {
   /**
    * Setup Express middleware
    */
-  setupMiddleware() {
+  async setupMiddleware() {
+    // Compression middleware for production
+    if (config.isProduction && config.enableCompression) {
+      try {
+        const compression = await import('compression');
+        this.app.use(compression.default());
+        console.log('✅ Compression middleware enabled');
+      } catch (error) {
+        console.warn('⚠️  Could not load compression middleware:', error.message);
+      }
+    }
+    
+    // Rate limiting for production
+    if (config.isProduction && config.rateLimitWindowMs) {
+      try {
+        const rateLimit = await import('express-rate-limit');
+        const limiter = rateLimit.default({
+          windowMs: config.rateLimitWindowMs,
+          max: config.rateLimitMaxRequests,
+          message: {
+            success: false,
+            error: 'Too many requests from this IP, please try again later'
+          }
+        });
+        this.app.use('/api/', limiter);
+        console.log('✅ Rate limiting enabled');
+      } catch (error) {
+        console.warn('⚠️  Could not load rate limiting:', error.message);
+      }
+    }
+    
+    // Security headers
+    this.app.use((req, res, next) => {
+      if (config.securityHeaders) {
+        res.header('X-Frame-Options', 'DENY');
+        res.header('X-Content-Type-Options', 'nosniff');
+        res.header('X-XSS-Protection', '1; mode=block');
+        res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+      }
+      
+      // CORS headers
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+      next();
+    });
+    
     // Static files
     this.app.use(express.static(config.publicDir));
     
@@ -63,14 +109,6 @@ export class Application {
     
     // URL encoded parsing
     this.app.use(express.urlencoded({ extended: true }));
-    
-    // CORS headers
-    this.app.use((req, res, next) => {
-      res.header('Access-Control-Allow-Origin', '*');
-      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-      next();
-    });
   }
 
   /**
@@ -134,9 +172,20 @@ export class Application {
    */
   async initialize() {
     console.log('🚀 Initializing Ethereum Event Listener...');
+    console.log(`🌍 Environment: ${config.nodeEnv}`);
+    
+    // Initialize production environment if needed
+    if (config.isProduction) {
+      try {
+        const { initializeProduction } = await import('./config/production.js');
+        await initializeProduction();
+      } catch (error) {
+        console.warn('⚠️  Production initialization warning:', error.message);
+      }
+    }
     
     // Setup Express application
-    this.setupMiddleware();
+    await this.setupMiddleware();
     this.setupRoutes();
     this.setupWebSocket();
     this.setupErrorHandling();

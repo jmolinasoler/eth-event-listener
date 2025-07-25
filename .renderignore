@@ -1,0 +1,29 @@
+# Development files
+.env.local
+.env.development
+*.log
+logs/
+.DS_Store
+node_modules/.cache
+
+# Documentation
+*.md
+docs/
+.github/
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
+coverage/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+Thumbs.db
+.DS_Store

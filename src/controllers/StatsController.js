@@ -105,6 +105,16 @@ export class StatsController {
           }
         }
       };
+
+      // Add Render-specific information if available
+      if (config.isRender) {
+        health.render = {
+          platform: 'render',
+          region: config.renderRegion || 'unknown',
+          serviceId: config.renderServiceId || 'unknown',
+          deployId: config.deployId || process.env.RENDER_GIT_COMMIT || 'unknown'
+        };
+      }
       
       res.status(isHealthy ? 200 : 503).json(health);
     } catch (error) {

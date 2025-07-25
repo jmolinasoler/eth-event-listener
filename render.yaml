@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: eth-event-listener
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: eth-event-listener
+          property: port
+    disk:
+      name: app-logs
+      mountPath: /opt/render/project/src/logs
+      sizeGB: 1
+    healthCheckPath: /api/health
+    autoDeploy: true
+    branch: main
+    scaling:
+      minInstances: 1
+      maxInstances: 1
