@@ -2,7 +2,7 @@
   "name": "ethereum-event-listener",
   "version": "1.0.0",
   "description": "A Node.js app to listen to all Ethereum contract events.",
-  "license": "ISC",
+  "license": "MIT",
   "author": "",
   "type": "module",
   "main": "index.js",
