@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 3000;
 const ABI_DIR = path.join(rootDir, 'abis');
 
 if (!rpcUrl) {
-    throw new Error("RPC_URL not found in .env file. Please add it.");
+    console.warn("Warning: RPC_URL not found in .env file. Ethereum features will be disabled until configured.");
 }
 
 // --- Dependencies ---
@@ -45,6 +45,11 @@ const abiController = new AbiController(abiService);
 app.use(express.static(path.join(rootDir, 'public')));
 app.use(express.json());
 
+// Health Check Endpoint for Render.com
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
 // Multer Config
 const upload = multer({
     dest: path.join(rootDir, 'tmp_uploads'), // Temporary upload dir
@@ -58,15 +63,24 @@ app.delete('/api/abis/:address', (req, res) => abiController.delete(req, res));
 
 // --- Start ---
 async function start() {
+    // Start the web server first to ensure health checks pass
     try {
-        ethereumService.connect();
-
         server.listen(PORT, () => {
             console.log(`Web UI available at http://localhost:${PORT}`);
         });
     } catch (error) {
-        console.error("Failed to start application:", error);
+        console.error("Failed to start web server:", error);
         process.exit(1);
+    }
+
+    // Then attempt to connect to Ethereum
+    try {
+        if (rpcUrl) {
+            ethereumService.connect();
+        }
+    } catch (error) {
+        console.error("Failed to start the Ethereum listener:", error);
+        // Do not exit, keep the web server running
     }
 }
 
