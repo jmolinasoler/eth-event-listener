@@ -74,6 +74,18 @@ npm test
 - `POST /api/abis/upload`: Upload a new ABI JSON file.
 - `DELETE /api/abis/:address`: Delete an ABI by contract address.
 
+## Deployment
+
+### Render.com
+
+1. Fork this repository to your GitHub account.
+2. Create a new **Web Service** on Render.com.
+3. Connect your GitHub repository.
+4. Render will automatically detect the `render.yaml` file (if you use Blueprints) or you can configure it manually:
+    - **Build Command**: `npm install`
+    - **Start Command**: `npm start`
+5. **Important**: Add the `RPC_URL` environment variable in the Render dashboard with your Ethereum WebSocket URL.
+
 ## License
 
 MIT License
