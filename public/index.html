@@ -1,25 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ethereum Event Listener</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="steampunk.css">
 </head>
+
 <body>
     <div class="container">
         <div class="header">
             <h1>Ethereum Event Listener</h1>
             <div class="nav-links">
-                <a href="/abi-manager.html">🔧 Manage ABIs</a>
-                <a href="#" onclick="clearEvents()">🗑️ Clear Events</a>
+                <a href="/abi-manager.html">⚙️ Manage ABIs</a>
+                <a href="#" onclick="clearEvents()">🧹 Clear Events</a>
             </div>
         </div>
-        
+
         <div id="status" class="status disconnected">
             Connecting to WebSocket...
         </div>
-        
+
         <!-- Filter Section -->
         <div class="filter-section">
             <h3>🔍 Filter Events</h3>
@@ -35,7 +37,7 @@
             </div>
             <div id="filterStatus" class="filter-status"></div>
         </div>
-        
+
         <div>
             <h2>Live Events</h2>
             <p>Real-time Ethereum events will appear below. Events with loaded ABIs will be automatically decoded.</p>
@@ -50,7 +52,7 @@
         const filterStatusDiv = document.getElementById('filterStatus');
         const applyFilterBtn = document.getElementById('applyFilter');
         const clearFilterBtn = document.getElementById('clearFilter');
-        
+
         let eventCount = 0;
         const maxEvents = 100;
         let activeContractFilter = null;
@@ -63,12 +65,12 @@
         function connectWebSocket() {
             ws = new WebSocket(wsUrl);
 
-            ws.onopen = function() {
+            ws.onopen = function () {
                 statusDiv.textContent = 'Connected - Listening for events...';
                 statusDiv.className = 'status connected';
             };
 
-            ws.onmessage = function(event) {
+            ws.onmessage = function (event) {
                 try {
                     const data = JSON.parse(event.data);
                     handleMessage(data);
@@ -77,13 +79,13 @@
                 }
             };
 
-            ws.onclose = function() {
+            ws.onclose = function () {
                 statusDiv.textContent = 'Disconnected - Attempting to reconnect...';
                 statusDiv.className = 'status disconnected';
                 setTimeout(connectWebSocket, 3000);
             };
 
-            ws.onerror = function(error) {
+            ws.onerror = function (error) {
                 console.error('WebSocket error:', error);
                 statusDiv.textContent = 'Connection error - Attempting to reconnect...';
                 statusDiv.className = 'status disconnected';
@@ -107,11 +109,11 @@
             if (!activeContractFilter) {
                 return true; // No filter active, show all events
             }
-            
+
             // Normalize addresses for comparison (remove 0x prefix and convert to lowercase)
             const eventAddress = event.address.toLowerCase().replace('0x', '');
             const filterAddress = activeContractFilter.toLowerCase().replace('0x', '');
-            
+
             return eventAddress === filterAddress;
         }
 
@@ -136,7 +138,7 @@
                         <strong>Event Signature:</strong> ${event.decoded.signature}<br>
                         <strong>Arguments:</strong>
                 `;
-                
+
                 for (const [name, arg] of Object.entries(event.decoded.args)) {
                     content += `
                         <div class="arg-item">
@@ -155,7 +157,7 @@
             }
 
             eventDiv.innerHTML = content;
-            
+
             // Insert the new event at the BEGINNING (as first child)
             eventsDiv.insertBefore(eventDiv, eventsDiv.firstChild);
 
@@ -173,7 +175,7 @@
 
         function applyContractFilter() {
             const filterValue = contractFilterInput.value.trim();
-            
+
             if (filterValue === '') {
                 // Clear filter
                 activeContractFilter = null;
@@ -187,13 +189,13 @@
                     showNotification('Invalid address format', 'error');
                     return;
                 }
-                
+
                 activeContractFilter = filterValue;
                 filterStatusDiv.textContent = `Filtering events for: ${filterValue}`;
                 filterStatusDiv.className = 'filter-status active';
                 showNotification(`Filter applied for ${filterValue}`, 'success');
             }
-            
+
             // Clear current events to avoid confusion
             clearEvents();
         }
@@ -221,7 +223,7 @@
                 max-width: 300px;
                 word-wrap: break-word;
             `;
-            
+
             if (type === 'success') {
                 notification.style.backgroundColor = '#28a745';
             } else if (type === 'info') {
@@ -229,7 +231,7 @@
             } else if (type === 'error') {
                 notification.style.backgroundColor = '#dc3545';
             }
-            
+
             notification.textContent = message;
             document.body.appendChild(notification);
 
@@ -246,9 +248,9 @@
         // Event listeners for filter controls
         applyFilterBtn.addEventListener('click', applyContractFilter);
         clearFilterBtn.addEventListener('click', clearContractFilter);
-        
+
         // Allow Enter key to apply filter
-        contractFilterInput.addEventListener('keypress', function(e) {
+        contractFilterInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 applyContractFilter();
             }
@@ -258,4 +260,5 @@
         connectWebSocket();
     </script>
 </body>
+
 </html>

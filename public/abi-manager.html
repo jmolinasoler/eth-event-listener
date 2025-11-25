@@ -1,31 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ABI Manager</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .upload-section, .abis-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
-        .abi-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
-        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
-        .delete-btn { background-color: #dc3545; color: white; border: none; }
-        .upload-btn { background-color: #007bff; color: white; border: none; }
-        #status { margin: 10px 0; padding: 10px; border-radius: 4px; }
-        .success { background-color: #d4edda; color: #155724; }
-        .error { background-color: #f8d7da; color: #721c24; }
-    </style>
+    <link rel="stylesheet" href="steampunk.css">
 </head>
+
 <body>
     <div class="container">
-        <h1>ABI Manager</h1>
-        
+        <div class="header">
+            <h1>ABI Manager</h1>
+            <div class="nav-links">
+                <a href="/">🏠 Home</a>
+            </div>
+        </div>
+
         <div class="upload-section">
             <h2>Upload ABI</h2>
             <form id="uploadForm" enctype="multipart/form-data">
                 <input type="file" id="abiFile" accept=".json" required>
-                <input type="text" id="contractAddress" placeholder="Contract Address (optional)" style="margin: 10px 0; padding: 8px; width: 300px;">
+                <input type="text" id="contractAddress" placeholder="Contract Address (optional)"
+                    style="margin: 10px 0; padding: 8px; width: 300px;">
                 <br>
                 <button type="submit" class="upload-btn">Upload ABI</button>
             </form>
@@ -55,7 +52,7 @@
             try {
                 const response = await fetch('/api/abis');
                 const data = await response.json();
-                
+
                 if (data.success) {
                     abisListDiv.innerHTML = '';
                     data.abis.forEach(abi => {
@@ -85,7 +82,7 @@
                     method: 'DELETE'
                 });
                 const data = await response.json();
-                
+
                 if (data.success) {
                     showStatus(data.message);
                     loadAbis();
@@ -99,10 +96,10 @@
 
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const fileInput = document.getElementById('abiFile');
             const addressInput = document.getElementById('contractAddress');
-            
+
             if (!fileInput.files[0]) {
                 showStatus('Please select a file', true);
                 return;
@@ -119,9 +116,9 @@
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     showStatus(data.message);
                     fileInput.value = '';
@@ -139,4 +136,5 @@
         loadAbis();
     </script>
 </body>
+
 </html>
