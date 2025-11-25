@@ -48,7 +48,7 @@ async function loadAbis() {
   try {
     // Ensure abis directory exists
     await fs.mkdir(abiDir, { recursive: true });
-    
+
     const files = await fs.readdir(abiDir);
     console.log('Loading ABIs...');
     for (const file of files) {
@@ -86,7 +86,7 @@ function getLoadedAbis() {
 // --- Configuration ---
 const rpcUrl = process.env.RPC_URL;
 const PORT = process.env.PORT || 3000;
-const LOG_FILE_PATH = path.join(__dirname, 'events.log');
+
 
 if (!rpcUrl) {
   throw new Error("RPC_URL not found in .env file. Please add it.");
@@ -120,7 +120,7 @@ app.post('/api/abis/upload', upload.single('abi'), async (req, res) => {
     }
 
     const result = await loadSingleAbi(req.file.filename);
-    
+
     if (result.success) {
       // Broadcast ABI update to connected WebSocket clients
       broadcast({
@@ -128,9 +128,9 @@ app.post('/api/abis/upload', upload.single('abi'), async (req, res) => {
         address: `0x${result.address}`,
         timestamp: new Date().toISOString()
       });
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         message: `ABI loaded successfully for address 0x${result.address}`,
         address: `0x${result.address}`
       });
@@ -154,10 +154,10 @@ app.delete('/api/abis/:address', async (req, res) => {
     const address = req.params.address.toLowerCase().replace('0x', '');
     const filename = `${address}.json`;
     const abiPath = path.join(__dirname, 'abis', filename);
-    
+
     // Remove from registry
     abiRegistry.delete(address);
-    
+
     // Delete file
     try {
       await fs.unlink(abiPath);
@@ -166,17 +166,17 @@ app.delete('/api/abis/:address', async (req, res) => {
         throw error;
       }
     }
-    
+
     // Broadcast ABI removal to connected WebSocket clients
     broadcast({
       type: 'abi_removed',
       address: `0x${address}`,
       timestamp: new Date().toISOString()
     });
-    
-    res.json({ 
-      success: true, 
-      message: `ABI removed for address 0x${address}` 
+
+    res.json({
+      success: true,
+      message: `ABI removed for address 0x${address}`
     });
   } catch (error) {
     console.error('Delete error:', error);
@@ -245,10 +245,10 @@ const logHandler = async (log) => {
           if (typeof value === 'bigint') {
             value = value.toString();
           }
-            args[input.name] = {
-              value: value,
-              type: input.type
-            };
+          args[input.name] = {
+            value: value,
+            type: input.type
+          };
         });
 
         formattedLog.decoded = { name: parsedLog.name, signature: parsedLog.signature, args: args };
@@ -261,14 +261,6 @@ const logHandler = async (log) => {
   // Broadcast to connected WebSocket clients
   console.log(`Broadcasting event from block ${log.blockNumber} for contract ${log.address}`);
   broadcast(formattedLog);
-
-  // Append the event to the log file
-  const logEntry = JSON.stringify(formattedLog) + '\n';
-  try {
-    await fs.appendFile(LOG_FILE_PATH, logEntry);
-  } catch (err) {
-    console.error(`Failed to write event to log file: ${err.message}`);
-  }
 };
 
 // --- Main Application Logic ---
@@ -281,7 +273,7 @@ function connect() {
   const onConnected = () => {
     console.log('Provider connected. Listening for all new events...');
     console.log('----------------------------------------------------');
-    
+
     // In ethers v6, you cannot subscribe to all events directly on the provider
     // with a wildcard like `provider.on("*", ...)`. That syntax is for contract
     // instances (`contract.on("*", ...)`).

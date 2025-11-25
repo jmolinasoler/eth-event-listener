@@ -1,10 +1,9 @@
 import { ethers } from 'ethers';
 
 export class EthereumService {
-    constructor(rpcUrl, abiRepository, logRepository, webSocketService) {
+    constructor(rpcUrl, abiRepository, webSocketService) {
         this.rpcUrl = rpcUrl;
         this.abiRepository = abiRepository;
-        this.logRepository = logRepository;
         this.webSocketService = webSocketService;
         this.provider = null;
     }
@@ -87,6 +86,5 @@ export class EthereumService {
 
         console.log(`Broadcasting event from block ${log.blockNumber} for contract ${log.address}`);
         this.webSocketService.broadcast(formattedLog);
-        await this.logRepository.append(formattedLog);
     }
 }

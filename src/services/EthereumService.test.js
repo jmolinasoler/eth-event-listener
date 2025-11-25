@@ -6,7 +6,7 @@ describe('EthereumService', () => {
     let service;
     let mockProvider;
     let mockAbiRepo;
-    let mockLogRepo;
+
     let mockWsService;
 
     beforeEach(() => {
@@ -26,10 +26,6 @@ describe('EthereumService', () => {
             getAll: async () => []
         };
 
-        mockLogRepo = {
-            append: async () => { }
-        };
-
         mockWsService = {
             broadcast: () => { }
         };
@@ -37,7 +33,6 @@ describe('EthereumService', () => {
         service = new EthereumService(
             'ws://localhost:8545',
             mockAbiRepo,
-            mockLogRepo,
             mockWsService
         );
         // Inject mock provider
@@ -55,11 +50,6 @@ describe('EthereumService', () => {
 
         mockProvider.getLogs = async () => logs;
 
-        let appendedLog;
-        mockLogRepo.append = async (log) => {
-            appendedLog = log;
-        };
-
         let broadcastLog;
         mockWsService.broadcast = (log) => {
             broadcastLog = log;
@@ -68,8 +58,6 @@ describe('EthereumService', () => {
         // Simulate block event
         await service.handleBlock(1);
 
-        assert.ok(appendedLog);
-        assert.equal(appendedLog.blockNumber, 1);
         assert.ok(broadcastLog);
         assert.equal(broadcastLog.blockNumber, 1);
     });

@@ -7,7 +7,6 @@ import { fileURLToPath } from 'url';
 import multer from 'multer';
 
 import { AbiRepository } from './repositories/AbiRepository.js';
-import { LogRepository } from './repositories/LogRepository.js';
 import { WebSocketService } from './services/WebSocketService.js';
 import { AbiService } from './services/AbiService.js';
 import { EthereumService } from './services/EthereumService.js';
@@ -22,7 +21,6 @@ const rootDir = path.join(__dirname, '..');
 const rpcUrl = process.env.RPC_URL;
 const PORT = process.env.PORT || 3000;
 const ABI_DIR = path.join(rootDir, 'abis');
-const LOG_FILE = path.join(rootDir, 'events.log');
 
 if (!rpcUrl) {
     throw new Error("RPC_URL not found in .env file. Please add it.");
@@ -30,7 +28,6 @@ if (!rpcUrl) {
 
 // --- Dependencies ---
 const abiRepository = new AbiRepository(ABI_DIR);
-const logRepository = new LogRepository(LOG_FILE);
 
 // Initialize Repositories
 await abiRepository.loadAll();
@@ -41,7 +38,7 @@ const wss = new WebSocketServer({ server });
 
 const webSocketService = new WebSocketService(wss);
 const abiService = new AbiService(abiRepository, webSocketService);
-const ethereumService = new EthereumService(rpcUrl, abiRepository, logRepository, webSocketService);
+const ethereumService = new EthereumService(rpcUrl, abiRepository, webSocketService);
 const abiController = new AbiController(abiService);
 
 // --- Middleware ---
