@@ -7,6 +7,10 @@ export class AbiRepository {
         this.abis = new Map();
     }
 
+    _normalize(address) {
+        return address.toLowerCase().startsWith('0x') ? address.toLowerCase() : `0x${address.toLowerCase()}`;
+    }
+
     async loadAll() {
         try {
             await fs.mkdir(this.storageDir, { recursive: true });
@@ -14,7 +18,9 @@ export class AbiRepository {
 
             for (const file of files) {
                 if (file.endsWith('.json')) {
-                    const address = file.slice(0, -5); // remove .json
+                    let address = file.slice(0, -5); // remove .json
+                    address = this._normalize(address);
+
                     const content = await fs.readFile(path.join(this.storageDir, file), 'utf8');
                     try {
                         const abi = JSON.parse(content);
@@ -31,7 +37,7 @@ export class AbiRepository {
     }
 
     async save(address, abi) {
-        const normalizedAddress = address.toLowerCase().replace('0x', '');
+        const normalizedAddress = this._normalize(address);
         const filename = `${normalizedAddress}.json`;
         const filepath = path.join(this.storageDir, filename);
 
@@ -42,19 +48,19 @@ export class AbiRepository {
     }
 
     async get(address) {
-        const normalizedAddress = address.toLowerCase().replace('0x', '');
+        const normalizedAddress = this._normalize(address);
         return this.abis.get(normalizedAddress) || null;
     }
 
     async getAll() {
         return Array.from(this.abis.entries()).map(([address, abi]) => ({
-            address: `0x${address}`,
+            address,
             abi
         }));
     }
 
     async delete(address) {
-        const normalizedAddress = address.toLowerCase().replace('0x', '');
+        const normalizedAddress = this._normalize(address);
         const filename = `${normalizedAddress}.json`;
         const filepath = path.join(this.storageDir, filename);
 
