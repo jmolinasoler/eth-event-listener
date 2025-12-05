@@ -44,13 +44,17 @@ app.use(express.json());
 // Health Check Endpoint for Render.com
 // This endpoint must respond quickly and reliably for Render to detect the app is ready
 // Must be defined BEFORE static middleware to ensure it's always accessible
-app.get('/health', (req, res) => {
+const healthCheckHandler = (req, res) => {
     res.status(200).json({ 
         status: 'OK', 
         timestamp: new Date().toISOString(),
         service: 'ethereum-event-listener'
     });
-});
+};
+
+// Support both /health and /api/health for Render compatibility
+app.get('/health', healthCheckHandler);
+app.get('/api/health', healthCheckHandler);
 
 // Serve static files (UI)
 app.use(express.static(path.join(rootDir, 'public')));
