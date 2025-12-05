@@ -39,10 +39,11 @@ const ethereumService = new EthereumService(rpcUrl, abiRepository, webSocketServ
 const abiController = new AbiController(abiService);
 
 // --- Middleware ---
-app.use(express.static(path.join(rootDir, 'public')));
 app.use(express.json());
 
 // Health Check Endpoint for Render.com
+// This endpoint must respond quickly and reliably for Render to detect the app is ready
+// Must be defined BEFORE static middleware to ensure it's always accessible
 app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'OK', 
@@ -50,6 +51,9 @@ app.get('/health', (req, res) => {
         service: 'ethereum-event-listener'
     });
 });
+
+// Serve static files (UI)
+app.use(express.static(path.join(rootDir, 'public')));
 
 // Multer Config
 const upload = multer({
@@ -63,14 +67,24 @@ app.post('/api/abis/upload', upload.single('abi'), (req, res) => abiController.u
 app.delete('/api/abis/:address', (req, res) => abiController.delete(req, res));
 
 // --- Start ---
+function startServer() {
+    return new Promise((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(PORT, '0.0.0.0', () => {
+            console.log(`Server listening on port ${PORT}`);
+            console.log(`Web UI available at http://0.0.0.0:${PORT}`);
+            server.removeListener('error', reject);
+            resolve();
+        });
+    });
+}
+
 async function start() {
     // Start the web server first to ensure health checks pass immediately
     // Bind to 0.0.0.0 to accept connections from all interfaces (required for Render)
     try {
-        server.listen(PORT, '0.0.0.0', () => {
-            console.log(`Server listening on port ${PORT}`);
-            console.log(`Web UI available at http://0.0.0.0:${PORT}`);
-        });
+        await startServer();
+        console.log('Server is ready and accepting connections');
     } catch (error) {
         console.error("Failed to start web server:", error);
         process.exit(1);
@@ -96,4 +110,19 @@ async function start() {
     }
 }
 
-start();
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    // Don't exit - keep the server running
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    // Don't exit immediately - let the server try to continue
+});
+
+start().catch((error) => {
+    console.error('Failed to start application:', error);
+    process.exit(1);
+});
