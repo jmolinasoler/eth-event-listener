@@ -41,6 +41,12 @@ const abiController = new AbiController(abiService);
 // --- Middleware ---
 app.use(express.json());
 
+// Multer Config (must be defined before routes that use it)
+const upload = multer({
+    dest: path.join(rootDir, 'tmp_uploads'), // Temporary upload dir
+    limits: { fileSize: 1024 * 1024 }
+});
+
 // Health Check Endpoint for Render.com
 // This endpoint must respond quickly and reliably for Render to detect the app is ready
 // Must be defined BEFORE static middleware to ensure it's always accessible
@@ -53,22 +59,17 @@ const healthCheckHandler = (req, res) => {
 };
 
 // Support both /health and /api/health for Render compatibility
-app.get('/health', healthCheckHandler);
+// Define these routes FIRST, before any other middleware that might intercept
 app.get('/api/health', healthCheckHandler);
+app.get('/health', healthCheckHandler);
 
-// Serve static files (UI)
-app.use(express.static(path.join(rootDir, 'public')));
-
-// Multer Config
-const upload = multer({
-    dest: path.join(rootDir, 'tmp_uploads'), // Temporary upload dir
-    limits: { fileSize: 1024 * 1024 }
-});
-
-// --- Routes ---
+// --- API Routes (must be before static middleware) ---
 app.get('/api/abis', (req, res) => abiController.getAll(req, res));
 app.post('/api/abis/upload', upload.single('abi'), (req, res) => abiController.upload(req, res));
 app.delete('/api/abis/:address', (req, res) => abiController.delete(req, res));
+
+// Serve static files (UI) - only after API routes are defined
+app.use(express.static(path.join(rootDir, 'public')));
 
 // --- Start ---
 function startServer() {
