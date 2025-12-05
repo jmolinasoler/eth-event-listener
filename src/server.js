@@ -47,7 +47,11 @@ app.use(express.json());
 
 // Health Check Endpoint for Render.com
 app.get('/health', (req, res) => {
-    res.status(200).send('OK');
+    res.status(200).json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        service: 'ethereum-event-listener'
+    });
 });
 
 // Multer Config
@@ -64,9 +68,11 @@ app.delete('/api/abis/:address', (req, res) => abiController.delete(req, res));
 // --- Start ---
 async function start() {
     // Start the web server first to ensure health checks pass
+    // Bind to 0.0.0.0 to accept connections from all interfaces (required for Render)
     try {
-        server.listen(PORT, () => {
-            console.log(`Web UI available at http://localhost:${PORT}`);
+        server.listen(PORT, '0.0.0.0', () => {
+            console.log(`Server listening on port ${PORT}`);
+            console.log(`Web UI available at http://0.0.0.0:${PORT}`);
         });
     } catch (error) {
         console.error("Failed to start web server:", error);
