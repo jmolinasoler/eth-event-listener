@@ -29,9 +29,6 @@ if (!rpcUrl) {
 // --- Dependencies ---
 const abiRepository = new AbiRepository(ABI_DIR);
 
-// Initialize Repositories
-await abiRepository.loadAll();
-
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
@@ -67,7 +64,7 @@ app.delete('/api/abis/:address', (req, res) => abiController.delete(req, res));
 
 // --- Start ---
 async function start() {
-    // Start the web server first to ensure health checks pass
+    // Start the web server first to ensure health checks pass immediately
     // Bind to 0.0.0.0 to accept connections from all interfaces (required for Render)
     try {
         server.listen(PORT, '0.0.0.0', () => {
@@ -77,6 +74,15 @@ async function start() {
     } catch (error) {
         console.error("Failed to start web server:", error);
         process.exit(1);
+    }
+
+    // Initialize Repositories asynchronously (don't block server startup)
+    try {
+        await abiRepository.loadAll();
+        console.log('ABIs loaded successfully');
+    } catch (error) {
+        console.error('Error loading ABIs (continuing anyway):', error);
+        // Don't exit - server can still function without pre-loaded ABIs
     }
 
     // Then attempt to connect to Ethereum
