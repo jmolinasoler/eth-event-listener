@@ -38,6 +38,10 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+// Trust proxy - required for Render.com and other cloud platforms
+// This allows rate limiting and logging to work correctly with proxied requests
+app.set('trust proxy', 1);
+
 const webSocketService = new WebSocketService(wss);
 const abiService = new AbiService(abiRepository, webSocketService);
 const ethereumService = new EthereumService(rpcUrl, abiRepository, webSocketService);

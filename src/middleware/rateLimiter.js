@@ -23,11 +23,6 @@ export const apiLimiter = rateLimit({
     skip: (req) => {
         return req.path === '/health' || req.path === '/api/health';
     },
-    // Custom key generator (uses IP address)
-    keyGenerator: (req) => {
-        // Use X-Forwarded-For header if behind a proxy (like Render.com)
-        return req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-    },
     // Handler for when rate limit is exceeded
     handler: (req, res) => {
         console.warn(`Rate limit exceeded for IP: ${req.ip}`);
@@ -52,9 +47,6 @@ export const uploadLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => {
-        return req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-    },
     handler: (req, res) => {
         console.warn(`Upload rate limit exceeded for IP: ${req.ip}`);
         res.status(429).json({
@@ -78,9 +70,6 @@ export const deleteLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => {
-        return req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-    },
     handler: (req, res) => {
         console.warn(`Delete rate limit exceeded for IP: ${req.ip}`);
         res.status(429).json({
