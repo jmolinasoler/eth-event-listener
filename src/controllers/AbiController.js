@@ -1,4 +1,4 @@
-import { validateEthereumAddress, validateAbi, validateJson, sanitizeAddress } from '../utils/validators.js';
+import { validateEthereumAddress, validateAbi, validateJson, sanitizeAddress, validateFileUpload } from '../utils/validators.js';
 
 export class AbiController {
     constructor(abiService) {
@@ -18,6 +18,15 @@ export class AbiController {
         try {
             if (!req.file) {
                 return res.status(400).json({ success: false, error: 'No file uploaded' });
+            }
+
+            // Validate file upload
+            const fileValidation = validateFileUpload(req.file);
+            if (!fileValidation.valid) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: fileValidation.error 
+                });
             }
 
             // Read and validate file content
@@ -44,8 +53,28 @@ export class AbiController {
                 });
             }
 
-            // Extract address from filename (expected format: address.json)
-            const addressFromFilename = req.file.originalname.slice(0, -5);
+            // Safely extract address from filename
+            // originalname is user-controlled, so validate it carefully
+            const filename = req.file.originalname;
+            
+            // Ensure filename has .json extension
+            if (!filename.toLowerCase().endsWith('.json')) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'File must have .json extension' 
+                });
+            }
+            
+            // Extract address (remove .json extension)
+            const addressFromFilename = filename.slice(0, -5);
+            
+            // Ensure filename doesn't contain path traversal characters
+            if (addressFromFilename.includes('/') || addressFromFilename.includes('\\') || addressFromFilename.includes('..')) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'Invalid filename format' 
+                });
+            }
             
             // Validate Ethereum address
             const addressValidation = validateEthereumAddress(addressFromFilename);

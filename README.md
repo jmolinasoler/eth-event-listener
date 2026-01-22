@@ -43,12 +43,36 @@ The project is organized into the following layers:
     ```
 
 3. **Configure Environment:**
-    Create a `.env` file in the root directory:
+    Create a `.env` file in the root directory (see `.env.example` for all options):
 
     ```env
+    # Required for Ethereum features
     RPC_URL="wss://mainnet.infura.io/ws/v3/YOUR_PROJECT_ID"
+    
+    # Server configuration
     PORT=3000
+    NODE_ENV=development
+    
+    # Security configuration (optional, defaults shown)
+    RATE_LIMIT_WINDOW_MS=60000
+    RATE_LIMIT_MAX_REQUESTS=100
+    CORS_ORIGIN=*
     ```
+
+## Security Features
+
+This application implements comprehensive security measures:
+
+- **Environment Validation**: All environment variables are validated at startup
+- **Input Validation**: Ethereum addresses validated with checksums, ABIs validated before saving
+- **Rate Limiting**: 
+  - General API: 100 requests/minute per IP
+  - Upload endpoints: 20 requests/minute per IP
+  - Delete endpoints: 10 requests/minute per IP
+- **Security Headers**: CSP, X-Frame-Options, X-Content-Type-Options, HSTS (production), etc.
+- **CORS Protection**: Configurable origin validation
+- **Request Sanitization**: Prevents XSS, clickjacking, and MIME sniffing attacks
+- **Secure Logging**: Sensitive information (API keys) masked in logs
 
 ## Usage
 
@@ -70,9 +94,18 @@ npm test
 
 ## API Endpoints
 
-- `GET /api/abis`: List all loaded ABIs.
-- `POST /api/abis/upload`: Upload a new ABI JSON file.
-- `DELETE /api/abis/:address`: Delete an ABI by contract address.
+All API endpoints are protected with rate limiting and security headers.
+
+- `GET /api/health`: Health check endpoint (not rate limited)
+- `GET /api/abis`: List all loaded ABIs
+- `POST /api/abis/upload`: Upload a new ABI JSON file (must be named `{address}.json`)
+- `DELETE /api/abis/:address`: Delete an ABI by contract address
+
+### Rate Limits
+
+- General API endpoints: 100 requests per minute per IP
+- Upload endpoint: 20 requests per minute per IP
+- Delete endpoint: 10 requests per minute per IP
 
 ## Deployment
 
