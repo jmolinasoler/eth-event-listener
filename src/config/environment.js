@@ -1,5 +1,8 @@
 import 'dotenv/config';
 
+// Constants
+const API_KEY_MIN_LENGTH = 20; // Minimum length to consider a path segment as an API key
+
 /**
  * Environment configuration with validation
  * Validates required environment variables at startup
@@ -139,8 +142,8 @@ class Environment {
             // Mask path segments that look like API keys (long alphanumeric strings)
             const pathParts = urlObj.pathname.split('/');
             const maskedParts = pathParts.map(part => {
-                // If part is longer than 20 chars and alphanumeric, it's likely an API key
-                if (part.length > 20 && /^[a-zA-Z0-9]+$/.test(part)) {
+                // If part is longer than API_KEY_MIN_LENGTH chars and alphanumeric, it's likely an API key
+                if (part.length > API_KEY_MIN_LENGTH && /^[a-zA-Z0-9]+$/.test(part)) {
                     return '***';
                 }
                 return part;

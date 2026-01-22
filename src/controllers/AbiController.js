@@ -54,7 +54,10 @@ export class AbiController {
             }
 
             // Safely extract address from filename
-            // originalname is user-controlled, so validate it carefully
+            // originalname is user-controlled, so we validate it thoroughly:
+            // 1. Must have .json extension
+            // 2. No path traversal characters (/, \, ..)
+            // 3. Must be a valid Ethereum address (checksummed)
             const filename = req.file.originalname;
             
             // Ensure filename has .json extension
@@ -68,7 +71,7 @@ export class AbiController {
             // Extract address (remove .json extension)
             const addressFromFilename = filename.slice(0, -5);
             
-            // Ensure filename doesn't contain path traversal characters
+            // Prevent path traversal attacks - ensure filename doesn't contain path separators
             if (addressFromFilename.includes('/') || addressFromFilename.includes('\\') || addressFromFilename.includes('..')) {
                 return res.status(400).json({ 
                     success: false, 
@@ -76,7 +79,7 @@ export class AbiController {
                 });
             }
             
-            // Validate Ethereum address
+            // Validate as Ethereum address (this ensures it's a valid format)
             const addressValidation = validateEthereumAddress(addressFromFilename);
             if (!addressValidation.valid) {
                 return res.status(400).json({ 

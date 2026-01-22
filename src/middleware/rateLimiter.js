@@ -29,7 +29,7 @@ export const apiLimiter = rateLimit({
         res.status(429).json({
             success: false,
             error: 'Too many requests from this IP, please try again later.',
-            retryAfter: req.rateLimit?.resetTime
+            retryAfter: req.rateLimit?.reset
         });
     }
 });
@@ -52,7 +52,7 @@ export const uploadLimiter = rateLimit({
         res.status(429).json({
             success: false,
             error: 'Too many upload attempts from this IP, please try again later.',
-            retryAfter: req.rateLimit?.resetTime
+            retryAfter: req.rateLimit?.reset
         });
     }
 });
@@ -75,7 +75,7 @@ export const deleteLimiter = rateLimit({
         res.status(429).json({
             success: false,
             error: 'Too many delete attempts from this IP, please try again later.',
-            retryAfter: req.rateLimit?.resetTime
+            retryAfter: req.rateLimit?.reset
         });
     }
 });
