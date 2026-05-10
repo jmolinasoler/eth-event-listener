@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import { WebSocketServer } from 'ws';
@@ -6,11 +5,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 
+import { env } from './config/environment.js';
 import { AbiRepository } from './repositories/AbiRepository.js';
 import { WebSocketService } from './services/WebSocketService.js';
 import { AbiService } from './services/AbiService.js';
 import { EthereumService } from './services/EthereumService.js';
 import { AbiController } from './controllers/AbiController.js';
+import { corsMiddleware, securityHeaders, additionalSecurity, requestLogger } from './middleware/security.js';
+import { apiLimiter, uploadLimiter, deleteLimiter } from './middleware/rateLimiter.js';
 
 // --- ES Module Workarounds ---
 const __filename = fileURLToPath(import.meta.url);
@@ -18,12 +20,15 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.join(__dirname, '..');
 
 // --- Configuration ---
-const rpcUrl = process.env.RPC_URL;
-const PORT = process.env.PORT || 3000;
+// Log sanitized configuration at startup
+console.log('Starting with configuration:', JSON.stringify(env.getSanitized(), null, 2));
+
+const rpcUrl = env.get('RPC_URL');
+const PORT = env.get('PORT');
 const ABI_DIR = path.join(rootDir, 'abis');
 
 if (!rpcUrl) {
-    console.warn("Warning: RPC_URL not found in .env file. Ethereum features will be disabled until configured.");
+    console.warn("Warning: RPC_URL not configured. Ethereum features will be disabled.");
 }
 
 // --- Dependencies ---
@@ -33,13 +38,33 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+// Trust proxy - required for Render.com and other cloud platforms
+// This allows rate limiting and logging to work correctly with proxied requests
+app.set('trust proxy', 1);
+
 const webSocketService = new WebSocketService(wss);
 const abiService = new AbiService(abiRepository, webSocketService);
 const ethereumService = new EthereumService(rpcUrl, abiRepository, webSocketService);
 const abiController = new AbiController(abiService);
 
 // --- Middleware ---
-app.use(express.json());
+// Security headers (must be first)
+app.use(securityHeaders);
+
+// CORS
+app.use(corsMiddleware);
+
+// Request logging
+app.use(requestLogger);
+
+// JSON parsing with size limit
+app.use(express.json({ limit: '1mb' }));
+
+// Additional security checks
+app.use(additionalSecurity);
+
+// Rate limiting for API routes
+app.use('/api/', apiLimiter);
 
 // Multer Config (must be defined before routes that use it)
 const upload = multer({
@@ -65,8 +90,8 @@ app.get('/health', healthCheckHandler);
 
 // --- API Routes (must be before static middleware) ---
 app.get('/api/abis', (req, res) => abiController.getAll(req, res));
-app.post('/api/abis/upload', upload.single('abi'), (req, res) => abiController.upload(req, res));
-app.delete('/api/abis/:address', (req, res) => abiController.delete(req, res));
+app.post('/api/abis/upload', uploadLimiter, upload.single('abi'), (req, res) => abiController.upload(req, res));
+app.delete('/api/abis/:address', deleteLimiter, (req, res) => abiController.delete(req, res));
 
 // Serve static files (UI) - only after API routes are defined
 app.use(express.static(path.join(rootDir, 'public')));

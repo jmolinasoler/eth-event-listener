@@ -25,7 +25,7 @@ describe('AbiController', () => {
     });
 
     it('should get all ABIs', async () => {
-        const abis = [{ address: '0x123' }];
+        const abis = [{ address: '0x742d35cc6634c0532925a3b844bc9e7595f0beb0' }];
         mockAbiService.getAbis = async () => abis;
 
         await controller.getAll(mockReq, mockRes);
@@ -34,31 +34,27 @@ describe('AbiController', () => {
     });
 
     it('should upload an ABI', async () => {
-        mockReq.file = { filename: '0x123.json', path: '/tmp/test-upload.json' };
+        const validAddress = '0x742d35cc6634c0532925a3b844bc9e7595f0beb0';
+        mockReq.file = { 
+            originalname: `${validAddress}.json`,
+            filename: `${validAddress}.json`, 
+            path: '/tmp/test-upload.json' 
+        };
         mockAbiService.loadAbi = async (addr) => ({ success: true, address: addr });
 
-        // Mock fs.readFile since controller reads it
-        // We need to mock fs in native test runner without loader hooks or DI,
-        // let's just create a dummy file.
+        // Create a valid ABI file
         const fs = await import('fs/promises');
-        await fs.writeFile('/tmp/test-upload.json', JSON.stringify([]));
+        const validAbi = [{ type: 'function', name: 'test', inputs: [] }];
+        await fs.writeFile('/tmp/test-upload.json', JSON.stringify(validAbi));
 
         await controller.upload(mockReq, mockRes);
 
         assert.equal(mockRes.data.success, true);
-        // The controller might return 0x0x123 if service adds 0x and controller adds 0x.
-        // Let's check what we expect.
-        // Service returns { address: addr }.
-        // Controller: address: `0x${result.address}`
-        // If input was 0x123.json, address is 0x123.
-        // Result address is 0x123.
-        // Response address is 0x0x123?
-        // We should fix controller to not double add 0x if present.
-        // But for now let's just assert success.
     });
 
     it('should delete an ABI', async () => {
-        mockReq.params = { address: '0x123' };
+        const validAddress = '0x742d35cc6634c0532925a3b844bc9e7595f0beb0';
+        mockReq.params = { address: validAddress };
         mockAbiService.deleteAbi = async () => ({ success: true });
 
         await controller.delete(mockReq, mockRes);
